@@ -658,10 +658,12 @@ impl<A: Float + Zero + One, T: std::cmp::PartialEq, const K: usize> KdTree<A, T,
     {
         while let Node::Stem { left, right, .. } = &curr.content {
             let candidate;
-            (candidate, *curr) = if curr.belongs_in_left(point) {
-                (right, left)
+            if curr.belongs_in_left(point) {
+                candidate = right;
+                *curr = left;
             } else {
-                (left, right)
+                candidate = left;
+                *curr = right;
             };
 
             let candidate_to_space = util::distance_to_space(
@@ -745,14 +747,14 @@ impl<A: Float + Zero + One, T: std::cmp::PartialEq, const K: usize> KdTree<A, T,
     /// # Ok::<(), kiddo::ErrorKind>(())
     /// ```
     pub fn add(&mut self, point: &[A; K], data: T) -> Result<(), ErrorKind> {
-        self.check_point(&point)?;
+        self.check_point(point)?;
         self.add_unchecked(point, data)
     }
 
     fn add_unchecked(&mut self, point: &[A; K], data: T) -> Result<(), ErrorKind> {
         let res = match &mut self.content {
             Node::Leaf { .. } => {
-                self.add_to_bucket(&point, data);
+                self.add_to_bucket(point, data);
                 return Ok(());
             }
 
@@ -771,14 +773,14 @@ impl<A: Float + Zero + One, T: std::cmp::PartialEq, const K: usize> KdTree<A, T,
             }
         };
 
-        self.extend(&point);
+        self.extend(point);
         self.size += 1;
 
         res
     }
 
     fn add_to_bucket(&mut self, point: &[A; K], data: T) {
-        self.extend(&point);
+        self.extend(point);
         let cap;
         match &mut self.content {
             Node::Leaf {
@@ -955,12 +957,13 @@ where
             let mut curr = &*self.pending.pop().unwrap().element;
             while let Node::Stem { left, right, .. } = &curr.content {
                 let candidate;
-                (candidate, curr) = if curr.belongs_in_left(point) {
-                    (right, left)
+                if curr.belongs_in_left(point) {
+                    candidate = right;
+                    curr = left;
                 } else {
-                    (left, right)
+                    candidate = left;
+                    curr = right;
                 };
-
                 self.pending.push(HeapElement {
                     distance: -distance_to_space(
                         point,
@@ -979,7 +982,7 @@ where
 
                     self.evaluated
                         .extend(points.zip(bucket).map(|(p, d)| HeapElement {
-                            distance: -distance(point, &p),
+                            distance: -distance(point, p),
                             element: d,
                         }));
                 }
